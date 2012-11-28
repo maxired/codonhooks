@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # fail fast
-set -e 
+set -e
 
 function echo_title() {
   echo $'\e[1G----->' $*
@@ -18,7 +18,7 @@ function process() {
       echo $'\e[1G      ' "$line"
     fi
 
-  done 
+  done
 }
 
 while read OLDREV NEWREV REF; do
@@ -39,12 +39,12 @@ while read OLDREV NEWREV REF; do
   selected_buildpack=
 
   for buildpack in "${buildpacks[@]}"; do
-    ($buildpack/bin/detect "$build_root") > /dev/null 2>&1 && selected_buildpack=$buildpack 
+    ($buildpack/bin/detect "$build_root") > /dev/null 2>&1 && selected_buildpack=$buildpack
   done
 
   buildpack_name=
   if [ -n "$selected_buildpack" ]; then
-    buildpack_name=${selected_buildpack##*/} 
+    buildpack_name=${selected_buildpack##*/}
     echo_title "$buildpack_name app detected"
   else
     echo_title "Unable to select a buildpack"
@@ -58,7 +58,7 @@ while read OLDREV NEWREV REF; do
 
 
   echo_title "Discovering process types"
-  release_output=$($selected_buildpack/bin/release "$build_root" "$cache_root") 
+  release_output=$($selected_buildpack/bin/release "$build_root" "$cache_root")
 
 
   default_types=$(echo "$release_output" | sed -ne '/^default/,/(\z|^[a-z])/  {
@@ -73,7 +73,7 @@ while read OLDREV NEWREV REF; do
   else
     procfile=$(echo "$default_types" | sed -e 's/^/  /')
   fi
-  
+
   echo_normal "Default process types for $buildpack_name -> " $(echo "$default_types" | cut -d: -f1 | tr $'\n' ',' | sed -e 's/,$//')
 
   if [ -f "$build_root/.slugignore" ]; then
@@ -87,11 +87,11 @@ while read OLDREV NEWREV REF; do
 
   echo_normal "Using slug_id: ${slug_id}"
   release_payload=$(echo -e "${release_output}\npstable:\n${procfile}\ncommit: $NEWREV\nslug_id: ${slug_id}")
-  curl -s -o /dev/null -X PUT -T /tmp/slug.tgz "$slug_put_url" 
-  release_number=$(curl -s -X POST -H 'Content-Type: text/plain' --data-binary "$release_payload" "$push_code_url")
+  curl -0 -s -X PUT -T /tmp/slug.tgz "$slug_put_url"
+  release_number=$(http_proxy="" curl -s -X POST -H 'Content-Type: text/plain' --data-binary "$release_payload" "$push_code_url")
 
   echo_title "Launching... done v" $release_number
   echo_normal "$dyno_web_url deployed to Openruko"
   echo_normal $'\n'
-  
+
 done;
